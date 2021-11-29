@@ -12,8 +12,6 @@ import (
 	"github.com/nacos-group/nacos-sdk-go/vo"
 )
 
-var configClient config_client.IConfigClient
-
 type NacosClientConfig struct {
 	NamespaceId         string `json:"NamespaceId"`
 	TimeoutMs           uint64 `json:"TimeoutMs"`
@@ -40,29 +38,60 @@ type ConfRoot struct {
 	Nacos NacosConfig `json:"nacos"`
 }
 
-func init() {
-	f_config, err := os.Open("config/config")
+type VinehooNacosConfig struct {
+	ConfigClient config_client.IConfigClient
+}
+
+// 创建VinehooNacosConfig对象
+//
+// filename 为nacos配置文件路径
+//
+// 配置文件格式:
+//
+// {
+// 	"nacos": {
+// 		"ClientConfig": {
+// 			"NamespaceId": "123434-6569-4a2d-a623-5df9999dd91a",
+// 			"TimeoutMs": 5000,
+// 			"NotLoadCacheAtStart": true,
+// 			"Username": "123",
+// 			"Password": "12345678"
+// 		},
+// 		"ServerConfig": {
+// 			"IpAddr": "127.0.0.1",
+// 			"ContextPath": "/nacos",
+// 			"Port": 8848,
+// 			"Scheme": "http"
+// 		}
+// 	}
+// }
+func NewVinehooNacosConfig(filename string) (*VinehooNacosConfig, error) {
+	vnc := VinehooNacosConfig{}
+
+	f_config, err := os.Open(filename)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	defer f_config.Close()
 
 	fileinfo, err := f_config.Stat()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
+
 	filesize := fileinfo.Size()
 	data_buf := make([]byte, filesize)
 	_, err = f_config.Read(data_buf)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	conf_data := ConfRoot{}
+
 	err = json.Unmarshal(data_buf, &conf_data)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	clientConfig := constant.ClientConfig{
@@ -88,20 +117,23 @@ func init() {
 		},
 	}
 
-	configClient, _ = clients.NewConfigClient(
+	vnc.ConfigClient, _ = clients.NewConfigClient(
 		vo.NacosClientParam{
 			ClientConfig:  &clientConfig,
 			ServerConfigs: serverConfigs,
 		},
 	)
+
+	return &vnc, nil
 }
 
-func GetString(dataId string, group string) (string, error) {
-	if configClient == nil {
+// 获取配置
+func (vnc *VinehooNacosConfig) GetString(dataId string, group string) (string, error) {
+	if vnc.ConfigClient == nil {
 		return "", errors.New("nacos service is not connected. Please check the config file.")
 	}
 
-	content, err := configClient.GetConfig(vo.ConfigParam{
+	content, err := vnc.ConfigClient.GetConfig(vo.ConfigParam{
 		DataId: dataId,
 		Group:  group})
 	if err != nil {
@@ -111,12 +143,13 @@ func GetString(dataId string, group string) (string, error) {
 	return content, nil
 }
 
-func GetConfigList(page, count int) (*model.ConfigPage, error) {
-	if configClient == nil {
+// 获取配置项列表
+func (vnc *VinehooNacosConfig) GetConfigList(page, count int) (*model.ConfigPage, error) {
+	if vnc.ConfigClient == nil {
 		return nil, errors.New("nacos service is not connected. Please check the config file.")
 	}
 
-	configPage, err := configClient.SearchConfig(vo.SearchConfigParam{
+	configPage, err := vnc.ConfigClient.SearchConfig(vo.SearchConfigParam{
 		Search:   "blur",
 		DataId:   "",
 		Group:    "",
@@ -133,12 +166,13 @@ func GetConfigList(page, count int) (*model.ConfigPage, error) {
 	return configPage, nil
 }
 
-func SetConfig(dataId, group, content string) error {
-	if configClient == nil {
+// 设置配置
+func (vnc *VinehooNacosConfig) SetConfig(dataId, group, content string) error {
+	if vnc.ConfigClient == nil {
 		return errors.New("nacos service is not connected. Please check the config file.")
 	}
 
-	success, err := configClient.PublishConfig(vo.ConfigParam{
+	success, err := vnc.ConfigClient.PublishConfig(vo.ConfigParam{
 		DataId:  dataId,
 		Group:   group,
 		Content: content,
