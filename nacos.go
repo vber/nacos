@@ -188,3 +188,21 @@ func (vnc *VinehooNacosConfig) SetConfig(dataId, group, content string) error {
 
 	return nil
 }
+
+// 订阅配置，当监听配置出现变化时给于通知
+func (vnc *VinehooNacosConfig) ListenConfig(dataId, group string) <-chan string {
+	updated_conf := make(chan string)
+	err := vnc.ConfigClient.ListenConfig(vo.ConfigParam{
+		DataId: dataId,
+		Group:  group,
+		OnChange: func(namespace, group, dataId, data string) {
+			updated_conf <- data
+		},
+	})
+
+	if err != nil {
+		return nil
+	}
+
+	return updated_conf
+}
