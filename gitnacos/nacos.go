@@ -1,4 +1,4 @@
-package nacos
+package gitnacos
 
 import (
 	"encoding/json"
@@ -10,6 +10,11 @@ import (
 	"github.com/nacos-group/nacos-sdk-go/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/model"
 	"github.com/nacos-group/nacos-sdk-go/vo"
+)
+
+var (
+	vinehoo_nacos *VinehooNacosConfig
+	ConfigClient  config_client.IConfigClient
 )
 
 type NacosClientConfig struct {
@@ -39,7 +44,17 @@ type ConfRoot struct {
 }
 
 type VinehooNacosConfig struct {
-	ConfigClient config_client.IConfigClient
+}
+
+type ConfigListenHandler = func(data *string, err error)
+
+func init() {
+	var (
+		err error
+	)
+	if vinehoo_nacos, err = NewVinehooNacosConfig("config/config"); err != nil {
+		panic(err)
+	}
 }
 
 // 创建VinehooNacosConfig对象
@@ -117,39 +132,44 @@ func NewVinehooNacosConfig(filename string) (*VinehooNacosConfig, error) {
 		},
 	}
 
-	vnc.ConfigClient, _ = clients.NewConfigClient(
+	if ConfigClient, err = clients.NewConfigClient(
 		vo.NacosClientParam{
 			ClientConfig:  &clientConfig,
 			ServerConfigs: serverConfigs,
 		},
-	)
+	); err != nil {
+		panic(err)
+	}
 
 	return &vnc, nil
 }
 
 // 获取配置
-func (vnc *VinehooNacosConfig) GetString(dataId string, group string) (string, error) {
-	if vnc.ConfigClient == nil {
-		return "", errors.New("nacos service is not connected. Please check the config file.")
-	}
-
-	content, err := vnc.ConfigClient.GetConfig(vo.ConfigParam{
+func GetString(dataId string, group string, listenHandler ConfigListenHandler) (string, error) {
+	content, err := ConfigClient.GetConfig(vo.ConfigParam{
 		DataId: dataId,
 		Group:  group})
 	if err != nil {
 		return "", err
 	}
 
+	if listenHandler != nil {
+		if err := ConfigClient.ListenConfig(vo.ConfigParam{
+			DataId: dataId,
+			Group:  group,
+			OnChange: func(namespace, group, dataId, data string) {
+				listenHandler(&data, nil)
+			},
+		}); err != nil {
+			listenHandler(nil, err)
+		}
+	}
 	return content, nil
 }
 
 // 获取配置项列表
-func (vnc *VinehooNacosConfig) GetConfigList(page, count int) (*model.ConfigPage, error) {
-	if vnc.ConfigClient == nil {
-		return nil, errors.New("nacos service is not connected. Please check the config file.")
-	}
-
-	configPage, err := vnc.ConfigClient.SearchConfig(vo.SearchConfigParam{
+func GetConfigList(page, count int) (*model.ConfigPage, error) {
+	configPage, err := ConfigClient.SearchConfig(vo.SearchConfigParam{
 		Search:   "blur",
 		DataId:   "",
 		Group:    "",
@@ -167,12 +187,12 @@ func (vnc *VinehooNacosConfig) GetConfigList(page, count int) (*model.ConfigPage
 }
 
 // 设置配置
-func (vnc *VinehooNacosConfig) SetConfig(dataId, group, content string) error {
-	if vnc.ConfigClient == nil {
+func SetConfig(dataId, group, content string) error {
+	if ConfigClient == nil {
 		return errors.New("nacos service is not connected. Please check the config file.")
 	}
 
-	success, err := vnc.ConfigClient.PublishConfig(vo.ConfigParam{
+	success, err := ConfigClient.PublishConfig(vo.ConfigParam{
 		DataId:  dataId,
 		Group:   group,
 		Content: content,
@@ -190,9 +210,9 @@ func (vnc *VinehooNacosConfig) SetConfig(dataId, group, content string) error {
 }
 
 // 订阅配置，当监听配置出现变化时给于通知
-func (vnc *VinehooNacosConfig) ListenConfig(dataId, group string) <-chan string {
+func ListenConfig(dataId, group string) <-chan string {
 	updated_conf := make(chan string)
-	err := vnc.ConfigClient.ListenConfig(vo.ConfigParam{
+	err := ConfigClient.ListenConfig(vo.ConfigParam{
 		DataId: dataId,
 		Group:  group,
 		OnChange: func(namespace, group, dataId, data string) {
