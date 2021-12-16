@@ -3,6 +3,7 @@
 
 # 使用方法
 ```go
+# 读取配置并监听
 gitnacos.GetString("test2", "test.group", func(data *string, err error) {
   if err == nil {
      fmt.Println("data2:", *data
@@ -11,6 +12,7 @@ gitnacos.GetString("test2", "test.group", func(data *string, err error) {
   }
 })
 
+# 只读取不监听
 d, _ := gitnacos.GetString("test3", "test.group", nil)
 fmt.Println(d)
 
