@@ -3,8 +3,10 @@
 
 # 使用方法
 ```go
+import "github.com/vber/nacos"
+
 # 读取配置并监听
-gitnacos.GetString("test2", "test.group", func(data *string, err error) {
+nacos.GetString("test2", "test.group", func(data *string, err error) {
   if err == nil {
      fmt.Println("data2:", *data
   } else {
