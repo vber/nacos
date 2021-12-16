@@ -15,7 +15,7 @@ nacos.GetString("test2", "test.group", func(data *string, err error) {
 })
 
 # 只读取不监听
-d, _ := gitnacos.GetString("test3", "test.group", nil)
+d, _ := nacos.GetString("test3", "test.group", nil)
 fmt.Println(d)
 
 ```
