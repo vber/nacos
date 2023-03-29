@@ -113,6 +113,7 @@ func NewVinehooNacosConfig(filename string) (*VinehooNacosConfig, error) {
 		NamespaceId:         conf_data.Nacos.ClientConfig.NamespaceId,
 		TimeoutMs:           conf_data.Nacos.ClientConfig.TimeoutMs,
 		NotLoadCacheAtStart: conf_data.Nacos.ClientConfig.NotLoadCacheAtStart,
+		CacheDir:            "cache",
 	}
 
 	if conf_data.Nacos.ClientConfig.Username == "" {
