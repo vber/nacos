@@ -1,4 +1,4 @@
-module github.com/vber/nacos
+module github.com/vber/nacos/v2
 
 go 1.20
 
